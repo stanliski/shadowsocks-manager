@@ -21,6 +21,121 @@ const formatMacAddress = mac => {
   return mac.replace(/-/g, '').replace(/:/g, '').toLowerCase();
 };
 
+exports.mobileSignup = (req, res) => {
+  req.checkBody('email', 'Invalid email').isEmail();
+  req.checkBody('code', 'Invalid code').notEmpty();
+  req.checkBody('password', 'Invalid password').notEmpty();
+  let type = 'normal';
+  req.getValidationResult().then(result => {
+    if(result.isEmpty()) {
+      const email = req.body.email.toString().toLowerCase();
+      const code = req.body.code;
+      return emailPlugin.checkCode(email, code);
+    }
+    return Promise.reject('invalid body');
+  }).then(success => {
+    // The first user will be admin
+    return knex('user').count('id AS count').then(success => {
+      if(!success[0].count) {
+        type = 'admin';
+      }
+      return;
+    });
+  }).then(success => {
+    const email = req.body.email.toString().toLowerCase();
+    const password = req.body.password;
+    return user.add({
+      username: email,
+      email,
+      password,
+      type,
+    });
+  }).then(success => {
+    req.session.user = success[0];
+    req.session.type = type;
+    if(success[0] > 1) {
+      const userId = success[0];
+      // let port = 50000;
+      return knex('webguiSetting').select().where({
+        key: 'account',
+      })
+      .then(success => JSON.parse(success[0].value))
+      .then(success => {
+        const newUserAccount = success.accountForNewUser;
+        if(!success.accountForNewUser.isEnable) {
+          return;
+        }
+        const getNewPort = () => {
+          return knex('webguiSetting').select().where({
+            key: 'account',
+          }).then(success => {
+            if(!success.length) { return Promise.reject('settings not found'); }
+            success[0].value = JSON.parse(success[0].value);
+            return success[0].value.port;
+          }).then(port => {
+            if(port.random) {
+              const getRandomPort = () => Math.floor(Math.random() * (port.end - port.start + 1) + port.start);
+              let retry = 0;
+              let myPort = getRandomPort();
+              const checkIfPortExists = port => {
+                let myPort = port;
+                return knex('account_plugin').select()
+                .where({ port }).then(success => {
+                  if(success.length && retry <= 30) {
+                    retry++;
+                    myPort = getRandomPort();
+                    return checkIfPortExists(myPort);
+                  } else if (success.length && retry > 30) {
+                    return Promise.reject('Can not get a random port');
+                  } else {
+                    return myPort;
+                  }
+                });
+              };
+              return checkIfPortExists(myPort);
+            } else {
+              return knex('account_plugin').select()
+              .whereBetween('port', [port.start, port.end])
+              .orderBy('port', 'DESC').limit(1).then(success => {
+                if(success.length) {
+                  return success[0].port + 1;
+                }
+                return port.start;
+              });
+            }
+          });
+        };
+        getNewPort().then(port => {
+          return account.addAccount(newUserAccount.type || 5, {
+            user: userId,
+            port,
+            password: Math.random().toString().substr(2,10),
+            time: Date.now(),
+            limit: newUserAccount.limit || 8,
+            flow: (newUserAccount.flow ? newUserAccount.flow : 350) * 1000000,
+            server: newUserAccount.server ? JSON.stringify(newUserAccount.server): null,
+            autoRemove: newUserAccount.autoRemove ? 1 : 0,
+            multiServerFlow: newUserAccount.multiServerFlow ? 1 : 0,
+          });
+        });
+      });
+    } else {
+      return;
+    }
+  }).then(success => {
+    logger.info(`[${ req.body.email }] signup success`);
+    push.pushMessage('注册', {
+      body: `用户[ ${ req.body.email.toString().toLowerCase() } ]注册成功`,
+    });
+    isTelegram && telegram.push(`用户[ ${ req.body.email.toString().toLowerCase() } ]注册成功`);
+    res.send({success: true});
+  }).catch(err => {
+    logger.error(`[${ req.body.email }] signup fail: ${ err }`);
+    res.send({success: false});
+    res.status(403).end();
+  });
+};
+
 exports.signup = (req, res) => {
   req.checkBody('email', 'Invalid email').isEmail();
   req.checkBody('code', 'Invalid code').notEmpty();
