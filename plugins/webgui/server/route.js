@@ -56,6 +56,7 @@ app.get('/api/home/password/reset', home.checkResetPasswordToken);
 app.post('/api/home/password/reset', home.resetPassword);
 
 app.get('/api/admin/server', isAdmin, adminServer.getServers);
+app.get('/api/user/serverList', user.getServerLists);
 app.get('/api/admin/server/:serverId(\\d+)', isAdmin, adminServer.getOneServer);
 app.post('/api/admin/server', isAdmin, isSuperAdmin, adminServer.addServer);
 app.put('/api/admin/server/:serverId(\\d+)', isAdmin, isSuperAdmin, adminServer.editServer);
@@ -317,4 +318,3 @@ app.get('*', (req, res) => {
 //   });
 //   ws.send('ws connected');
 // });
-

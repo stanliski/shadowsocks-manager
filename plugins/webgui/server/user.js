@@ -76,6 +76,17 @@ exports.getOneAccount = (req, res) => {
   });;
 };
 
+exports.getServerLists = (req, res) => {
+  serverManager.list({
+    status: !!req.query.status,
+  }).then(success => {
+    res.send(success);
+  }).catch(err => {
+    console.log(err);
+    res.status(500).end();
+  });
+};
+
 exports.getServers = (req, res) => {
   const userId = req.session.user;
   const serverAliasFilter = servers => {
@@ -293,8 +304,8 @@ exports.getNotice = async (req, res) => {
     console.log(err);
     res.status(403).end();
   }
-  
-  
+
+
   // knex('notice').select().orderBy('time', 'desc').then(success => {
   //   return res.send(success);
   // }).catch(err => {
