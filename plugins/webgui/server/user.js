@@ -7,6 +7,7 @@ const config = appRequire('services/config').all();
 const giftcard = appRequire('plugins/giftcard');
 const log4js = require('log4js');
 const logger = log4js.getLogger('webgui');
+const serverManager = appRequire('plugins/flowSaver/server');
 
 const alipay = appRequire('plugins/alipay/index');
 
