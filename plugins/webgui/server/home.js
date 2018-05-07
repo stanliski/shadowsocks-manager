@@ -32,7 +32,7 @@ exports.mobileSignup = (req, res) => {
       const code = req.body.code;
       return true;
     }
-    return Promise.reject('invalid body');
+    return true;
   }).then(success => {
     // The first user will be admin
     return knex('user').count('id AS count').then(success => {
