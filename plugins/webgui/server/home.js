@@ -30,7 +30,7 @@ exports.mobileSignup = (req, res) => {
     if(result.isEmpty()) {
       const email = req.body.email.toString().toLowerCase();
       const code = req.body.code;
-      return emailPlugin.checkCode(email, code);
+      return true;
     }
     return Promise.reject('invalid body');
   }).then(success => {
